@@ -24,9 +24,11 @@ st.set_page_config(
 # CONFIG
 # ─────────────────────────────────────────────────────────
 SEASONS = {
-    "EIHL League 2024/25": 43,
-    "Challenge Cup 2024/25": 44,
+    "EIHL League 2025/26":   (43, 1),     # id_season=43, id_stage=1
+    "EIHL Playoffs 2025/26": (43, 2),     # id_season=43, id_stage=2
+    "Challenge Cup 2025/26": (42, None),  # separate season, no stage filter
 }
+
 
 TEAMS = {
     "Belfast Giants":      4,
@@ -114,8 +116,9 @@ def rank_label(rank: int, total: int) -> str:
 # SCRAPING  (cached 30 min)
 # ─────────────────────────────────────────────────────────
 @st.cache_data(ttl=1800, show_spinner=False)
-def scrape_season(season_id: int):
+def scrape_season(season_id: int, stage_id: int | None = None):
     skaters, goalies, team_pp = [], [], []
+    stage_suffix = f"&id_stage={stage_id}" if stage_id is not None else ""
 
     for team, team_id in TEAMS.items():
         slug = slugify(team)
@@ -123,7 +126,7 @@ def scrape_season(season_id: int):
         # ── Player stats ──────────────────────────────────
         player_url = BASE_PLAYER_URL.format(
             team_id=team_id, slug=slug, season=season_id
-        )
+        ) + stage_suffix
         try:
             tables = pd.read_html(player_url)
             for t in tables:
@@ -138,7 +141,7 @@ def scrape_season(season_id: int):
         # ── Team stats ────────────────────────────────────
         team_url = BASE_TEAM_URL.format(
             team_id=team_id, slug=slug, season=season_id
-        )
+        ) + stage_suffix
         try:
             for t in pd.read_html(team_url):
                 if "Powerplays" in t.columns:
