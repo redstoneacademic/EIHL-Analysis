@@ -353,7 +353,7 @@ with tab1:
                 return ""
             row = df.loc[df[col].idxmin() if asc else df[col].idxmax()]
             c = TEAM_COLOURS.get(row["Team"], "#4a9eff")
-            v = fmt.format(row[col]) if "{}" in fmt else fmt(row[col])
+v = fmt.format(row[col]) if isinstance(fmt, str) else fmt(row[col])
             return metric_card(label, v, row["Team"], c)
 
         c1, c2, c3, c4, c5 = st.columns(5)
