@@ -4,6 +4,7 @@ import json
 import pandas as pd
 import streamlit as st
 import hockey
+from team_pdf import build_team_pdf
 
 st.set_page_config(page_title="Commentary Desk", page_icon="🏒", layout="wide")
 
@@ -169,6 +170,16 @@ if bundle["errors"]:
 
 view = st.radio("Desk view", ["Tonight’s game", "Player lookup", "Situation lookup", "Match notes"], horizontal=True, label_visibility="collapsed")
 selected_teams = [focus, opponent]
+
+with st.expander("Download team sheets · landscape PDF"):
+    st.caption("One A4 landscape page per team, with all loaded skaters and goalies. Player search and leaderboard filters do not affect the export.")
+    for column, team in zip(st.columns(2), selected_teams):
+        with column:
+            try:
+                st.download_button(f"Download {team} PDF", build_team_pdf(bundle, team, match_label),
+                                   team.lower().replace(" ", "_") + "_stats.pdf", "application/pdf", key=f"pdf_{team}")
+            except ValueError as exc:
+                st.warning(str(exc))
 
 if view == "Tonight’s game":
     st.markdown("### At a glance")
