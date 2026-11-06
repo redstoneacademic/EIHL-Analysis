@@ -5,7 +5,7 @@ import pandas as pd
 import streamlit as st
 import hockey
 
-st.set_page_config(page_title="Blaze Commentary Desk", page_icon="🏒", layout="wide")
+st.set_page_config(page_title="Commentary Desk", page_icon="🏒", layout="wide")
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -68,8 +68,7 @@ def restore_snapshot(raw):
     return result
 
 
-st.title("🏒 Blaze Commentary Desk")
-st.caption("Your match, your players, your talking points.")
+st.title("Commentary Desk")
 with st.sidebar:
     st.header("Match setup")
     source_mode = st.radio("Data source", ["EIHL website", "Saved snapshot"])
@@ -142,16 +141,20 @@ if not team_names:
     st.warning("No team totals have been published for this competition.")
     st.stop()
 with st.sidebar:
-    focus = st.selectbox("Your team", team_names, index=team_names.index("Coventry Blaze") if "Coventry Blaze" in team_names else 0)
+    focus = st.selectbox("Your team", team_names, index=None, placeholder="Select your team")
     opponents = [t for t in team_names if t != focus]
     if not opponents:
         st.info("At least two teams are needed for a match comparison.")
         st.stop()
-    opponent = st.selectbox("Opponent", opponents)
+    opponent = st.selectbox("Opponent", opponents, index=None, placeholder="Select opponent", disabled=focus is None)
     match_label = st.text_input("Match label", value=datetime.now().strftime("%Y-%m-%d"), help="Use a date or fixture label to keep notes for different games separate.")
     st.divider()
     st.caption("Statistics are fetched on demand and cached for up to 30 minutes. This is season context, not a live game feed.")
     st.download_button("Save stats snapshot", snapshot_bytes(bundle), "blaze_stats_snapshot.json", "application/json")
+
+if focus is None or opponent is None:
+    st.info("Choose your team and opponent in the sidebar to open the commentary desk.")
+    st.stop()
 
 scope = f"notes:{season_id}:{stage_id}:{focus}:{opponent}:{match_label}"
 notes = st.session_state.setdefault(scope, [])
