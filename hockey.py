@@ -111,6 +111,23 @@ def clean_players(frame, goalie=False):
     return frame
 
 
+def add_gsaa(frame, complete=True):
+    """Use the shot-weighted average of all goalies in this competition/stage."""
+    frame = frame.copy()
+    frame["GSAA"] = float("nan")
+    frame["GSAA/60"] = float("nan")
+    if not complete or frame.empty or not {"SA", "GA"} <= set(frame):
+        return frame
+    valid = frame.SA.notna() & frame.GA.notna() & (frame.SA >= 0) & (frame.GA >= 0) & (frame.GA <= frame.SA)
+    if not valid.all() or frame.SA.sum() <= 0:
+        return frame
+    average_goals_per_shot = frame.GA.sum() / frame.SA.sum()
+    frame["GSAA"] = frame.SA * average_goals_per_shot - frame.GA
+    if "MIN" in frame:
+        frame["GSAA/60"] = divide(frame.GSAA, frame.MIN, 60)
+    return frame
+
+
 def parse_teams(html):
     frame = next((t.copy() for t in tables(html) if {"Team", "GP", "GF", "GA"} <= set(t)), None)
     if frame is None:
@@ -152,7 +169,7 @@ def load_season(season, stage=None):
             sk["Team"] = team
             if not gl.empty:
                 gl["Team"] = team
-            return sk, gl, url, None
+            return sk, gl, url, None if not gl.empty else f"{team}: goalie table unavailable; GSAA baseline cannot be verified."
         except Exception as exc:
             return pd.DataFrame(), pd.DataFrame(), url, f"{team}: {exc}"
 
@@ -171,6 +188,7 @@ def load_season(season, stage=None):
         errors.append(f"{team}: player page link not found.")
     sk = clean_players(pd.concat(skaters, ignore_index=True)) if skaters else pd.DataFrame()
     gl = clean_players(pd.concat(goalies, ignore_index=True), goalie=True) if goalies else pd.DataFrame()
+    gl = add_gsaa(gl, complete=not errors)
     return {"teams": teams, "skaters": sk, "goalies": gl, "errors": errors, "sources": sources,
             "season": int(season), "stage": stage,
             "fetched_at": datetime.now(timezone.utc).isoformat()}

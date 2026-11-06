@@ -63,6 +63,7 @@ def restore_snapshot(raw):
     for key in ("season", "stage", "fetched_at", "sources", "errors"):
         if key not in result:
             raise ValueError(f"Snapshot is missing {key}.")
+    result["goalies"] = hockey.add_gsaa(result["goalies"], complete=not result["errors"])
     return result
 
 
@@ -218,10 +219,14 @@ elif view == "Player lookup":
             chosen = st.selectbox("Player", indexes, format_func=lambda i: f"#{frame.loc[i].get('Jersey', '—')} · {frame.loc[i, 'Player']} · {frame.loc[i, 'Team']}")
             row = frame.loc[chosen]
             st.markdown(f"### {row.Player} · {row.Team}")
-            metrics = ["GP", "G", "A", "PTS", "S%", "FO%", "Team FO share %", "PTS/60"] if position == "Skaters" else ["GP", "W", "SV%", "GAA", "SO", "MIN"]
+            metrics = ["GP", "G", "A", "PTS", "S%", "FO%", "Team FO share %", "PTS/60", "G/60", "A/60"] if position == "Skaters" else ["GP", "W", "SV%", "GAA", "SO", "MIN", "GSAA", "GSAA/60"]
             for i in range(0, len(metrics), 4):
                 for col, stat in zip(st.columns(4), metrics[i:i+4]):
-                    col.metric(stat, fmt(row.get(stat, float("nan")), 0 if stat in ("GP", "G", "A", "PTS", "W", "SO") else 2))
+                    value = row.get(stat, float("nan"))
+                    display = f"{value:+.2f}" if stat in ("GSAA", "GSAA/60") and pd.notna(value) else fmt(value, 0 if stat in ("GP", "G", "A", "PTS", "W", "SO") else 2)
+                    col.metric(stat, display)
+            if position == "Goalies":
+                st.caption("GSAA compares goals conceded with a competition-average goalie facing the same number of shots. Positive means goals saved above average; GSAA/60 adjusts for minutes played. The baseline uses all loaded goalies in the selected competition and stage, before any player filters. Unavailable if source coverage is incomplete.")
             show_table(pd.DataFrame([row]))
             stat = "PTS" if position == "Skaters" else "SV%"
             population = skaters if position == "Skaters" else goalies
