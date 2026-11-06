@@ -20,6 +20,7 @@ def stages(season):
 
 @st.cache_data(ttl=1800, show_spinner=False)
 def data(season, stage):
+    """Fetch season context; revision 3 invalidates pre-GSAA cached bundles."""
     return hockey.load_season(season, stage)
 
 
@@ -131,6 +132,10 @@ with st.sidebar:
             st.warning(f"Refresh failed. Showing this session's last successful fetch: {exc}")
         bundle = dict(bundle, season_label=season_label, stage_label=stage_label)
 
+# Derived metrics must also work with cached bundles from earlier app versions.
+# Recompute before both the cards and snapshot export, using the full population.
+bundle = dict(bundle)
+bundle["goalies"] = hockey.add_gsaa(bundle["goalies"], complete=not bundle["errors"])
 teams, skaters, goalies = (bundle[k] for k in ("teams", "skaters", "goalies"))
 team_names = teams.Team.tolist()
 if not team_names:
@@ -227,6 +232,10 @@ elif view == "Player lookup":
                     col.metric(stat, display)
             if position == "Goalies":
                 st.caption("GSAA compares goals conceded with a competition-average goalie facing the same number of shots. Positive means goals saved above average; GSAA/60 adjusts for minutes played. The baseline uses all loaded goalies in the selected competition and stage, before any player filters. Unavailable if source coverage is incomplete.")
+                if pd.isna(row.get("GSAA", float("nan"))):
+                    st.warning("GSAA is unavailable because the competition-wide goalie totals are incomplete or invalid. Check Source problems above and try Refresh statistics.")
+                elif pd.isna(row.get("GSAA/60", float("nan"))):
+                    st.info("GSAA/60 is unavailable because this goalie's minutes are missing or zero.")
             show_table(pd.DataFrame([row]))
             stat = "PTS" if position == "Skaters" else "SV%"
             population = skaters if position == "Skaters" else goalies
